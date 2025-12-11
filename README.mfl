@@ -3,9 +3,11 @@
 A program that interacts with [wakapi] | https://github.com/muety/wakapi |
 
 == Usage ==
-    the `-a` and `-u` options are *REQUIRED*.
+    the `-a` and `-u`^[1] options are *REQUIRED*.
 
     * `-a` specifies the instance of wakapi to use.
     * `-u` specifies the user to lookup.
 
     For more help see `./lang-stats -h`
+
+^[1]: `-u` is not required with `-l`

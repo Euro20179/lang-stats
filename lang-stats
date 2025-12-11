@@ -79,7 +79,10 @@ def gen_help():
         e                  : enable ansi sequences
 
         f <file>           : read stats form a file (-) for stdin
-        F <summary|stats>  : set the data format to stats or summary
+        F <   summary      : set the data format stats, summary, or leaders
+            | stats          settings to leaders will display a leaderboard
+            | leaders
+          >
                            : also sets -r to today (use -r after to override)
         -S <start>         : start time
                              sets -F to summary as it's necessary
@@ -252,7 +255,7 @@ def get_clr_from_list_and_cur(l: list[Any], cur: int):
     else:
         return "0"
 
-def lang_lister():
+def language_printer():
     lang_count = 0
 
     total_pct = 0
@@ -323,7 +326,7 @@ def handle_stats(stats, label = "", print_reversed = print_reversed):
 
     langs = [item for item in stats if include(item["name"])]
 
-    printer = lang_lister()
+    printer = language_printer()
 
     total_secs, total_pct = printer(langs, total_secs_included)
 
@@ -339,7 +342,7 @@ if data_fmt == "leaders":
 
     total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
 
-    printer = lang_lister()
+    printer = language_printer()
 
     for i, user in enumerate(data["data"]):
         user_total = user["running_total"]["total_seconds"]

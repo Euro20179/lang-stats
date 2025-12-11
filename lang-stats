@@ -252,58 +252,53 @@ def get_clr_from_list_and_cur(l: list[Any], cur: int):
     else:
         return "0"
 
-def print_lang_list(
-    langs: list[Any],
-    total_secs_included: int,
-    total_langs = 0,
-    total_pct = 0,
-    total_secs = 0,
-    milestones_iter = None,
-    time_milestones_iter = None,
-    cur_milestone = None,
-    cur_time_milestone = None,
-):
-    lang_count = total_langs or 0
+def lang_lister():
+    lang_count = 0
 
-    total_pct = total_pct or 0
-    total_secs = total_secs or 0
+    total_pct = 0
+    total_secs = 0
 
-    milestones_iter = milestones_iter or iter(sorted(milestones))
-    cur_milestone = cur_milestone or next(milestones_iter, -1)
+    milestones_iter =  iter(sorted(milestones))
+    cur_milestone = next(milestones_iter, -1)
 
-    time_milestones_iter = time_milestones_iter or iter(sorted(time_milestones, key=time2secs))
-    cur_time_milestone = cur_time_milestone or next(time_milestones_iter, "")
+    time_milestones_iter = iter(sorted(time_milestones, key=time2secs))
+    cur_time_milestone = next(time_milestones_iter, "")
 
-    for i, item in enumerate(langs):
-        name = item["name"]
+    def print_lang_list(langs, total_secs_included: int):
+        nonlocal total_pct, total_secs, lang_count, cur_milestone, cur_time_milestone
 
-        secs = item["total_seconds"]
+        for i, item in enumerate(langs):
+            name = item["name"]
 
-        if not use_real_total:
-            pct = secs / total_secs_included * 100
-        else:
-            pct = item["percent"]
+            secs = item["total_seconds"]
 
-        total_pct += pct
+            if not use_real_total:
+                pct = secs / total_secs_included * 100
+            else:
+                pct = item["percent"]
 
-        total_secs += secs
-        lang_count += 1
+            total_pct += pct
 
-        clr = get_clr_from_list_and_cur(langs, i)
+            total_secs += secs
+            lang_count += 1
 
-        print_line_item(name, convertsecs(secs), pct, clr=clr)
+            clr = get_clr_from_list_and_cur(langs, i)
 
-        while cur_milestone > 0 and total_pct > cur_milestone:
-            print_line_item(f"{cur_milestone}%-({lang_count})", convertsecs(total_secs), total_pct, clr="35;1")
-            # print(f"\x1b[1m{cur_milestone}%-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
-            cur_milestone = next(milestones_iter, -1)
+            print_line_item(name, convertsecs(secs), pct, clr=clr)
 
-        while cur_time_milestone and total_secs > time2secs(cur_time_milestone):
-            print_line_item(f"{cur_time_milestone}-({lang_count})", convertsecs(total_secs), total_pct, clr="95")
-            # print(f"\x1b[1m{cur_time_milestone}-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
-            cur_time_milestone = next(time_milestones_iter, "")
+            while cur_milestone > 0 and total_pct > cur_milestone:
+                print_line_item(f"{cur_milestone}%-({lang_count})", convertsecs(total_secs), total_pct, clr="35;1")
+                # print(f"\x1b[1m{cur_milestone}%-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
+                cur_milestone = next(milestones_iter, -1)
 
-    return total_secs, total_pct, lang_count, cur_milestone, cur_time_milestone
+            while cur_time_milestone and total_secs > time2secs(cur_time_milestone):
+                print_line_item(f"{cur_time_milestone}-({lang_count})", convertsecs(total_secs), total_pct, clr="95")
+                # print(f"\x1b[1m{cur_time_milestone}-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
+                cur_time_milestone = next(time_milestones_iter, "")
+
+        return total_secs, total_pct
+
+    return print_lang_list
 
 def handle_stats(stats, label = "", print_reversed = print_reversed):
     if label:
@@ -328,7 +323,9 @@ def handle_stats(stats, label = "", print_reversed = print_reversed):
 
     langs = [item for item in stats if include(item["name"])]
 
-    total_secs, total_pct, *_ = print_lang_list(langs, total_secs_included)
+    printer = lang_lister()
+
+    total_secs, total_pct = printer(langs, total_secs_included)
 
     print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
     print(f"--------------\nAVG {convertsecs(round(total_secs / time_total * 86400))} time/day\n")
@@ -340,16 +337,9 @@ if data_fmt == "leaders":
         exit(1)
     data = raw
 
-    total_time = 0
     total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
 
-    miletones_iter = iter(sorted(milestones))
-    time_milestones_iter = iter(sorted(time_milestones, key=time2secs))
-
-    cur_milestone = next(miletones_iter, -1)
-    cur_time_milestone = next(time_milestones_iter, "")
-
-    total_secs = total_pct = total_langs = 0
+    printer = lang_lister()
 
     for i, user in enumerate(data["data"]):
         user_total = user["running_total"]["total_seconds"]
@@ -358,17 +348,7 @@ if data_fmt == "leaders":
         print_line_item(f"{user["user"]["display_name"]}", convertsecs(user_total), user_total / total_time * 100, clr=clr)
         include = lang_counter()
         langs = [item for item in user["running_total"]["languages"] if include(item["name"])]
-        total_secs, total_pct, total_langs, cur_milestone, cur_time_milestone = print_lang_list(
-            langs,
-            total_time,
-            total_langs=total_langs,
-            total_secs=total_secs,
-            total_pct=total_pct,
-            milestones_iter=miletones_iter,
-            time_milestones_iter=time_milestones_iter,
-            cur_milestone = cur_milestone,
-            cur_time_milestone= cur_time_milestone,
-        )
+        printer(langs, total_time)
 
     exit()
 elif data_fmt == "summary":

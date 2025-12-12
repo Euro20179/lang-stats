@@ -396,11 +396,11 @@ if data_fmt == "leaders":
             pct = secs / total_time * 100
             clr = get_clr_from_list_and_cur(langs, i - skipped)
             print_line_item(lang, convertsecs(secs), pct, clr=clr)
-            for user, secs in user_langs[lang].items():
+            for user, user_secs in user_langs[lang].items():
                 if ansi_enabled:
-                    print(f"\x1b[2m{user} {convertsecs(secs)} ({secs / total_time * 100:.02f}%)\x1b[0m")
+                    print(f"\x1b[2m{user} {convertsecs(user_secs)} ({user_secs / secs  * 100:.02f}%)\x1b[0m")
                 else:
-                    print(f"{user} {convertsecs(secs)} ({secs / total_time * 100:.02f}%)")
+                    print(f"{user} {convertsecs(user_secs)} ({user_secs / secs * 100:.02f}%)")
         print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / total_time * 100:.02f}%)")
         exit(0)
 

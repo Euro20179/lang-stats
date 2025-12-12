@@ -1,4 +1,5 @@
 #!/bin/python
+from dataclasses import dataclass
 import getopt
 import sys
 import os
@@ -56,8 +57,10 @@ end_time = ""
 read_from = ""
 data_fmt = "stats"
 
+output_fmt = "line"
+
 def gen_help():
-    print(f"""lang-stats [TprxiautAefSERl] [percentage...]
+    print(f"""lang-stats [TprxiautAefSERlO] [percentage...]
         Use wakapi to print language/project usage stats
 
         OPTIONS:
@@ -87,15 +90,20 @@ def gen_help():
             | leaders
           >
                            : also sets -r to today (use -r after to override)
-        -S <start>         : start time
+        O <  line
+           | combine-users
+          >                : "line": output each item one at a time for each user
+                           : "combine-users": combine each user's language totals and print
+
+        S <start>          : start time
                              sets -F to summary as it's necessary
                              also sets -r to ''
-        -E <end>           : end time
+        E <end>            : end time
                              sets -F to summary as it's necessary
                              also sets -r to ''
 
         --find <most-used> : finds the most used languages accross all users
-                             automatically sets -F to leaders
+                             same as -o combine-users -F leaders
 
         ARGUMENTS:
         percentage... :
@@ -106,7 +114,7 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:R", ["find="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
@@ -116,8 +124,11 @@ for opt, optarg in opts:
             if not to_find in valid_finds:
                 print(f"{to_find} is not one of {", ".join(valid_finds)}", file=sys.stderr)
                 exit(1)
-            if to_find == "most-used":
-                data_fmt = "leaders"
+            # if to_find == "most-used":
+            #     data_fmt = "leaders"
+            #     output_fmt = "combine-users"
+        case "O":
+            output_fmt = optarg
         case "t":
             top = int(optarg)
         case "p":
@@ -216,47 +227,6 @@ def lang_counter():
 
     return include_lang
 
-if args:
-    milestones = []
-    time_milestones = []
-    for arg in args:
-        if ":" in arg:
-            time_milestones.append(arg)
-        else:
-            milestones.append(float(arg))
-
-if read_from:
-    if read_from == "-":
-        raw = json.loads("".join(sys.stdin.readlines()))
-    else:
-        with open(read_from) as f:
-            raw = json.load(f)
-elif data_fmt == "stats":
-    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}")
-    raw = raw.json()
-elif data_fmt == "leaders":
-    req = requests.get(f"{api}/api/compat/wakatime/v1/leaders")
-    raw = req.json()
-else:
-    key = os.getenv("WAKA_KEY")
-    if not key:
-        print("the $WAKA_KEY env var must be set to use -F without -f", file=sys.stderr)
-        exit(1)
-    params = {}
-    if used_range:
-        params["range"] = used_range
-    elif start_time == '' or end_time == '':
-        print("Cannot use -F summary with no -f without setting -S AND -E", file=sys.stderr)
-        exit(1)
-    if start_time:
-        params["start"] = start_time
-        params["end"] = end_time
-    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/summaries", params=params, headers={
-        "Authorization": f"Basic {key}"
-        })
-    raw = raw.json()
-# print(json.dumps(raw))
-
 def print_line_item(name: str, time: str, pct: float, *, clr="35"):
     text = f"\x1b[{clr}m{name}\x1b[0m" if ansi_enabled else name
     text += f" {time} ({pct:.2f}%)"
@@ -271,7 +241,7 @@ def get_clr_from_list_and_cur(l: list[Any], cur: int):
     else:
         return "0"
 
-def language_printer():
+def language_printer(user_langs = None):
     lang_count = 0
 
     total_pct = 0
@@ -304,6 +274,14 @@ def language_printer():
             clr = get_clr_from_list_and_cur(langs, i)
 
             print_line_item(name, convertsecs(secs), pct, clr=clr)
+            if user_langs:
+                for user, dat in sorted(user_langs.items(), key=lambda u: u[1][name], reverse = True):
+                    if not dat[name]: continue
+                    if ansi_enabled:
+                        print(f"\x1b[2m", end="")
+                    print(f"{user} {convertsecs(dat[name])} ({dat[name] / secs * 100:0.2f}%)")
+                    if ansi_enabled:
+                        print("\x1b[0m", end="")
 
             while cur_milestone > 0 and total_pct > cur_milestone:
                 print_line_item(f"{cur_milestone}%-({lang_count})", convertsecs(total_secs), total_pct, clr="35;1")
@@ -319,133 +297,223 @@ def language_printer():
 
     return print_lang_list
 
-def handle_stats(stats, label = "", print_reversed = print_reversed):
-    if label:
-        print(f"------------------\n{label}\n------------------")
+@dataclass
+class DataPoint:
+    name: str
+    total_seconds: int
 
-    if print_reversed:
-        stats = [*reversed(stats)]
+@dataclass
+class User:
+    name: str
+    total_seconds: int
+    datapoints: list[DataPoint]
 
-    time_total = day_count * 86400
-
-    total_secs_included = 0
-
-    include = lang_counter()
-    langs = []
-    for item in stats:
-        name = item["name"]
-        if not include(name):
-            continue
-        total_secs_included += item["total_seconds"]
-        langs.append(item)
-
-    printer = language_printer()
-
-    total_secs, total_pct = printer(langs, total_secs_included)
-
-    print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
-    print(f"--------------\nAVG {convertsecs(round(total_secs / time_total * 86400))} time/day\n")
-
-if data_fmt == "leaders":
-    data = raw
-
-    dash_T = use_included_total
-
-    if not use_included_total:
-        total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
-        #update for printer
-        use_included_total = 1
-    else:
-        total_time = 0
-        for i, user in enumerate(data["data"]):
-            include = lang_counter()
-            for item in user["running_total"]["languages"]:
-                if not include(item["name"]): continue
-                total_time += item["total_seconds"]
-
-    if to_find == "most-used":
-        total_langs = defaultdict(int)
-        user_langs = defaultdict(lambda: defaultdict(int))
-        for i, user in enumerate(data["data"]):
-            for item in user["running_total"]["languages"]:
-                total_langs[item["name"]] += item["total_seconds"]
-                user_langs[item["name"]][user["user"]["display_name"]] = item["total_seconds"]
-
-        total_langs = sorted(total_langs.items(), key = lambda k: total_langs[k[0]], reverse = True)
-        langs = [k for k, _ in total_langs]
-        skipped = 0
-        total_included_time = 0
-
-        #redo the total time if -T was used because the earlier calculation
-        #uses the wrong languages, since --find=most-used needs to sort the
-        #languages
-        if dash_T:
-            total_time = 0
-            include = lang_counter()
-            for lang, secs in total_langs:
-                if not include(lang):
-                    continue
-                total_time += secs
-
+    def apply_include(self):
         include = lang_counter()
-
-        user_totals = defaultdict(int)
-
-        for i, (lang, secs) in enumerate(total_langs):
-            if not include(lang):
-                skipped += 1
+        new = []
+        for datapoint in self.datapoints:
+            if not include(datapoint.name):
                 continue
-            total_included_time += secs
-            pct = secs / total_time * 100
-            clr = get_clr_from_list_and_cur(langs, i - skipped)
-            print_line_item(lang, convertsecs(secs), pct, clr=clr)
-            for user, user_secs in sorted(user_langs[lang].items(), key=lambda u: u[1], reverse=True):
-                user_totals[user] += user_secs
-                if ansi_enabled:
-                    print(f"\x1b[2m{user} {convertsecs(user_secs)} ({user_secs / secs  * 100:.02f}%)\x1b[0m")
+            new.append(datapoint)
+        self.datapoints = new
+
+    def getdpByName(self, name: str):
+        v = filter(lambda k: k.name == name, self.datapoints)
+        for res in v:
+            return res
+
+@dataclass
+class CombinedUser(User):
+    original_users: dict[str, User]
+
+@dataclass
+class STDData:
+    users: list[User | CombinedUser]
+    total_seconds: int
+    day_count: int
+    start: int | None = None
+    end: int | None = None
+
+    def apply_include(self):
+        for user in self.users:
+            user.apply_include()
+
+    def print_users(self, users: list[User]):
+        for user in users:
+            if len(users) > 1:
+                print(f"- {user.name.upper()} -")
+            stats = user.datapoints
+            if print_reversed:
+                stats = [*reversed(stats)]
+
+            time_total = self.day_count * 86400
+
+            total_secs_included = 0
+
+            langs = []
+            for item in stats:
+                total_secs_included += item.total_seconds
+                langs.append({"name": item.name, "total_seconds": item.total_seconds, "percent": item.total_seconds / self.total_seconds * 100})
+
+            printer = language_printer()
+
+            total_secs, total_pct = printer(langs, total_secs_included)
+
+            print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
+            print(f"--------------\nAVG {convertsecs(round(total_secs / time_total * 86400))} time/day\n")
+
+    def print_line_items(self, label: str = ""):
+        if label:
+            print(f"------------------\n{label}\n------------------")
+
+        self.print_users(self.users)
+
+    def apply_combine_users(self):
+        langs = {}
+        user_langs = defaultdict(lambda: defaultdict(int))
+        total_secs_included = 0
+        for user in self.users:
+            for datapoint in user.datapoints:
+                user_langs[user.name][datapoint.name] += datapoint.total_seconds
+
+                if langs.get(datapoint.name):
+                    langs[datapoint.name] += datapoint.total_seconds
                 else:
-                    print(f"{user} {convertsecs(user_secs)} ({user_secs / secs * 100:.02f}%)")
-        print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / (total_time or 1) * 100:.02f}%)")
-        for user, user_secs in sorted(user_totals.items(), key=lambda u: u[1], reverse=True):
-            if ansi_enabled:
-                print(f"\x1b[2m{user} {convertsecs(user_secs)} ({user_secs / (total_included_time or 1) * 100:.02f}%)\x1b[0m")
-            else:
-                print(f"{user} {convertsecs(user_secs)} ({user_secs / (total_included_time or 1) * 100:.02f}%)")
-            
+                    langs[datapoint.name] = datapoint.total_seconds
+                total_secs_included += datapoint.total_seconds
 
-        exit(0)
+        self.users = [CombinedUser("COMBINED", total_secs_included, [
+                DataPoint(name, s) for name, s in langs.items()
+                ], original_users = {u.name: u for u in self.users})]
 
-    printer = language_printer()
+    def print_combined_users(self):
+        langs = {}
+        user_langs = defaultdict(lambda: defaultdict(int))
+        total_secs_included = 0
+        for user in self.users:
+            for datapoint in user.datapoints:
+                if isinstance(user, CombinedUser):
+                    for og in user.original_users:
+                        dp = user.original_users[og].getdpByName(datapoint.name)
+                        if dp:
+                            user_langs[og][datapoint.name] += dp.total_seconds
+                else:
+                    user_langs[user.name][datapoint.name] += datapoint.total_seconds
 
-    for i, user in enumerate(data["data"]):
-        include = lang_counter()
-        langs = [item for item in user["running_total"]["languages"] if include(item["name"])]
-        if not dash_T:
-            user_total = user["running_total"]["total_seconds"]
+                if langs.get(datapoint.name):
+                    langs[datapoint.name] += datapoint.total_seconds
+                else:
+                    langs[datapoint.name] = datapoint.total_seconds
+                total_secs_included += datapoint.total_seconds
+
+        langs = [{"name": name, "total_seconds": s, "percent": s / self.total_seconds * 100} for name, s in sorted(langs.items(), key = lambda i: i[1], reverse = True)]
+
+        printer = language_printer(user_langs)
+        total_secs, total_pct = printer(langs, total_secs_included)
+        print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
+        print(f"--------------\nAVG {convertsecs(round(total_secs / self.total_seconds * 86400))} time/day\n")
+
+if args:
+    milestones = []
+    time_milestones = []
+    for arg in args:
+        if ":" in arg:
+            time_milestones.append(arg)
         else:
-            user_total = sum(l["total_seconds"] for l in langs)
-        clr = get_clr_from_list_and_cur(data["data"], i)
-        print("----------")
-        print_line_item(f"{user["user"]["display_name"]}", convertsecs(user_total), user_total / (total_time or 1) * 100, clr=clr)
-        printer(langs, total_time)
+            milestones.append(float(arg))
 
-    exit()
+if read_from:
+    if read_from == "-":
+        raw = json.loads("".join(sys.stdin.readlines()))
+    else:
+        with open(read_from) as f:
+            raw = json.load(f)
+
+elif data_fmt == "stats":
+    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}")
+    raw = raw.json()
+elif data_fmt == "leaders":
+    req = requests.get(f"{api}/api/compat/wakatime/v1/leaders")
+    raw = req.json()
+else:
+    key = os.getenv("WAKA_KEY")
+    if not key:
+        print("the $WAKA_KEY env var must be set to use -F without -f", file=sys.stderr)
+        exit(1)
+    params = {}
+    if used_range:
+        params["range"] = used_range
+    elif start_time == '' or end_time == '':
+        print("Cannot use -F summary with no -f without setting -S AND -E", file=sys.stderr)
+        exit(1)
+    if start_time:
+        params["start"] = start_time
+        params["end"] = end_time
+    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/summaries", params=params, headers={
+        "Authorization": f"Basic {key}"
+        })
+    raw = raw.json()
+
+if data_fmt == "stats":
+    std = STDData(
+        users = [
+            User(
+                raw["data"]["username"],
+                raw["data"]["total_seconds"],
+                [DataPoint(name=l["name"], total_seconds=l["total_seconds"]) for l in raw["data"][section]]
+            )
+        ],
+        total_seconds = raw["data"]["total_seconds"],
+        day_count = raw["data"]["days_including_holidays"] + 1,
+    )
+elif data_fmt == "leaders":
+    start_ts = datetime.datetime.strptime(raw["range"]["start_date"][0:10], "%Y-%m-%d")
+    end_ts = datetime.datetime.strptime(raw["range"]["end_date"][0:10], "%Y-%m-%d")
+    day_count = int((end_ts.timestamp() - start_ts.timestamp()) / 86400)
+    total_seconds = 0
+    for user in raw["data"]:
+        total_seconds += user["running_total"]["total_seconds"]
+    std = STDData(
+            users = [User(
+                         u["user"]["display_name"],
+                         u["running_total"]["total_seconds"],
+                         [DataPoint(**d) for d in u["running_total"]["languages"]]
+                     ) for u in raw["data"]
+                     ],
+            day_count = day_count,
+            total_seconds = total_seconds
+    )
 elif data_fmt == "summary":
-    data = raw
-    day_count = data["daily_average"]["days_including_holidays"]
-    for day in data["data"]:
+    day_count = raw["daily_average"]["days_including_holidays"]
+    datapoints = {}
+    seconds = 0
+    for day in raw["data"]:
         start = day["range"]["start"][0:19]
         end = day["range"]["end"][0:19]
         day = day[section]
-        if day:
-            handle_stats(day, f'{datetime.datetime.strptime(start, "%Y-%m-%dT%H:%M:%S")} -> {datetime.datetime.strptime(end, "%Y-%m-%dT%H:%M:%S")}')
+        for dp in day:
+            seconds += dp["total_seconds"]
+            if datapoints.get(dp["name"]):
+                datapoints[dp["name"]] += dp["total_seconds"]
+            else:
+                datapoints[dp["name"]] = dp["total_seconds"]
+
+    datapoints = [DataPoint(name = name, total_seconds = s) for name, s in sorted(datapoints.items(), key = lambda i: i[1], reverse = True)]
+    std = STDData(
+            day_count = day_count,
+            total_seconds = seconds,
+            users = [User(name = user or "UNKNOWN", datapoints = datapoints, total_seconds = seconds)]
+        )
+
+else:
     exit()
 
-data = raw["data"]
-if data_fmt == "stats":
-    day_count = data["days_including_holidays"] + 1
-else:
-    day_count = raw["daily_average"]["days_including_holidays"]
+if to_find == "most-used":
+    std.apply_combine_users()
+if include_langs or exclude_langs or top > 0:
+    std.apply_include()
 
-data = data[section]
-handle_stats(data, "")
+if output_fmt == "line":
+    std.print_line_items()
+elif output_fmt == "combine-users":
+    std.print_combined_users()

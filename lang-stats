@@ -396,12 +396,12 @@ if data_fmt == "leaders":
             pct = secs / total_time * 100
             clr = get_clr_from_list_and_cur(langs, i - skipped)
             print_line_item(lang, convertsecs(secs), pct, clr=clr)
-            for user, user_secs in user_langs[lang].items():
+            for user, user_secs in sorted(user_langs[lang].items(), key=lambda u: u[1], reverse=True):
                 if ansi_enabled:
                     print(f"\x1b[2m{user} {convertsecs(user_secs)} ({user_secs / secs  * 100:.02f}%)\x1b[0m")
                 else:
                     print(f"{user} {convertsecs(user_secs)} ({user_secs / secs * 100:.02f}%)")
-        print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / total_time * 100:.02f}%)")
+        print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / (total_time or 1) * 100:.02f}%)")
         exit(0)
 
     printer = language_printer()
@@ -415,7 +415,7 @@ if data_fmt == "leaders":
             user_total = sum(l["total_seconds"] for l in langs)
         clr = get_clr_from_list_and_cur(data["data"], i)
         print("----------")
-        print_line_item(f"{user["user"]["display_name"]}", convertsecs(user_total), user_total / total_time * 100, clr=clr)
+        print_line_item(f"{user["user"]["display_name"]}", convertsecs(user_total), user_total / (total_time or 1) * 100, clr=clr)
         printer(langs, total_time)
 
     exit()

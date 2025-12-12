@@ -353,6 +353,7 @@ if data_fmt == "leaders":
 
     if not use_included_total:
         total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
+        #update for printer
         use_included_total = 1
     else:
         total_time = 0
@@ -362,19 +363,31 @@ if data_fmt == "leaders":
                 if not include(item["name"]): continue
                 total_time += item["total_seconds"]
 
-    printer = language_printer()
-
     if to_find == "most-used":
         total_langs = defaultdict(int)
+        user_langs = defaultdict(lambda: defaultdict(int))
         for i, user in enumerate(data["data"]):
             for item in user["running_total"]["languages"]:
                 total_langs[item["name"]] += item["total_seconds"]
+                user_langs[item["name"]][user["user"]["display_name"]] = item["total_seconds"]
 
         total_langs = sorted(total_langs.items(), key = lambda k: total_langs[k[0]], reverse = True)
         langs = [k for k, _ in total_langs]
-        include = lang_counter()
         skipped = 0
         total_included_time = 0
+
+        #redo the total time if -T was used because the earlier calculation
+        #uses the wrong languages, since --find=most-used needs to sort the
+        #languages
+        if dash_T:
+            total_time = 0
+            include = lang_counter()
+            for lang, secs in total_langs:
+                if not include(lang):
+                    continue
+                total_time += secs
+
+        include = lang_counter()
         for i, (lang, secs) in enumerate(total_langs):
             if not include(lang):
                 skipped += 1
@@ -383,9 +396,15 @@ if data_fmt == "leaders":
             pct = secs / total_time * 100
             clr = get_clr_from_list_and_cur(langs, i - skipped)
             print_line_item(lang, convertsecs(secs), pct, clr=clr)
+            for user, secs in user_langs[lang].items():
+                if ansi_enabled:
+                    print(f"\x1b[2m{user} {convertsecs(secs)} ({secs / total_time * 100:.02f}%)\x1b[0m")
+                else:
+                    print(f"{user} {convertsecs(secs)} ({secs / total_time * 100:.02f}%)")
         print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / total_time * 100:.02f}%)")
         exit(0)
 
+    printer = language_printer()
 
     for i, user in enumerate(data["data"]):
         include = lang_counter()

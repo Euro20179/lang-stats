@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import datetime
+from collections import defaultdict
 from typing import Any
 
 import requests
@@ -19,6 +20,8 @@ print_reversed = 0
 milestones: list[float | int] = [50]
 
 time_milestones: list[str] = []
+
+to_find = ""
 
 api = ""
 user = ""
@@ -91,6 +94,9 @@ def gen_help():
                              sets -F to summary as it's necessary
                              also sets -r to ''
 
+        --find <most-used> : finds the most used languages accross all users
+                             automatically sets -F to leaders
+
         ARGUMENTS:
         percentage... :
                     each arg is treated as a percentage or time to print to label
@@ -100,10 +106,18 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:R")
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:R", ["find="])
 
 for opt, optarg in opts:
-    match opt[1:]:
+    match opt.lstrip('-'):
+        case 'find':
+            valid_finds = ("most-used",)
+            to_find = optarg
+            if not to_find in valid_finds:
+                print(f"{to_find} is not one of {", ".join(valid_finds)}", file=sys.stderr)
+                exit(1)
+            if to_find == "most-used":
+                data_fmt = "leaders"
         case "t":
             top = int(optarg)
         case "p":
@@ -332,7 +346,6 @@ def handle_stats(stats, label = "", print_reversed = print_reversed):
     print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
     print(f"--------------\nAVG {convertsecs(round(total_secs / time_total * 86400))} time/day\n")
 
-
 if data_fmt == "leaders":
     data = raw
 
@@ -350,6 +363,23 @@ if data_fmt == "leaders":
                 total_time += item["total_seconds"]
 
     printer = language_printer()
+
+    if to_find == "most-used":
+        total_langs = defaultdict(int)
+        for i, user in enumerate(data["data"]):
+            for item in user["running_total"]["languages"]:
+                total_langs[item["name"]] += item["total_seconds"]
+
+        total_langs = sorted(total_langs.items(), key = lambda k: total_langs[k[0]], reverse = True)
+        langs = [k for k, _ in total_langs]
+        include = lang_counter()
+        for i, (lang, secs) in enumerate(total_langs):
+            if not include(lang): continue
+            pct = secs / total_time * 100
+            clr = get_clr_from_list_and_cur(langs, i)
+            print_line_item(lang, convertsecs(secs), pct, clr=clr)
+        exit(0)
+
 
     for i, user in enumerate(data["data"]):
         include = lang_counter()

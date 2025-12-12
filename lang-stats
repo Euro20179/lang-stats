@@ -187,7 +187,7 @@ def convertsecs(secs: int):
 
 def time2secs(time: str):
     hours, mins, secs = time.split(":")
-    return int(hours) * 3600 + int(mins) * 60 + int(secs)
+    return int(hours or "0") * 3600 + int(mins or "0") * 60 + int(secs or "0")
 
 def lang_counter():
     langs_included = 0

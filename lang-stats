@@ -54,7 +54,7 @@ read_from = ""
 data_fmt = "stats"
 
 def gen_help():
-    print("""lang-stats [TprxiautAefSERl] [percentage...]
+    print(f"""lang-stats [TprxiautAefSERl] [percentage...]
         Use wakapi to print language/project usage stats
 
         OPTIONS:
@@ -64,7 +64,7 @@ def gen_help():
         p                  : print project times instead of language times
         r <range>          : time range, one of:
         R                  : print from least -> greatest
-        $(printf '\t\t\t %s\n' "${valid_ranges[@]}")
+                                {"\n\t\t\t\t".join(valid_ranges)}
         x <names>          : exclude a ',' separated list of languages/projects
                              can be used multiple times.
                              Mutually exclusive with -i

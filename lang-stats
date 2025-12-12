@@ -12,7 +12,7 @@ section = "languages"
 exclude_langs: list[str] = []
 include_langs: list[str] = []
 
-use_real_total = 0
+use_included_total = 0
 
 print_reversed = 0
 
@@ -122,7 +122,7 @@ for opt, optarg in opts:
                 print(f"Not a valid range: {used_range} setting back to any",
                       file=sys.stderr)
         case "T":
-            use_real_total = 1
+            use_included_total = 1
         case "x":
             include_langs = []
             exclude_langs += [k.strip().lower() for k in optarg.split(",")]
@@ -275,7 +275,7 @@ def language_printer():
 
             secs = item["total_seconds"]
 
-            if not use_real_total:
+            if use_included_total:
                 pct = secs / total_secs_included * 100
             else:
                 pct = item["percent"]
@@ -315,16 +315,13 @@ def handle_stats(stats, label = "", print_reversed = print_reversed):
     total_secs_included = 0
 
     include = lang_counter()
+    langs = []
     for item in stats:
         name = item["name"]
         if not include(name):
             continue
         total_secs_included += item["total_seconds"]
-
-
-    include = lang_counter()
-
-    langs = [item for item in stats if include(item["name"])]
+        langs.append(item)
 
     printer = language_printer()
 
@@ -335,22 +332,33 @@ def handle_stats(stats, label = "", print_reversed = print_reversed):
 
 
 if data_fmt == "leaders":
-    if use_real_total:
-        print("Cannot use -T with -F leaders", file=sys.stderr)
-        exit(1)
     data = raw
 
-    total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
+    dash_T = use_included_total
+
+    if not use_included_total:
+        total_time = sum(k["running_total"]["total_seconds"] for k in data["data"])
+        use_included_total = 1
+    else:
+        total_time = 0
+        for i, user in enumerate(data["data"]):
+            include = lang_counter()
+            for item in user["running_total"]["languages"]:
+                if not include(item["name"]): continue
+                total_time += item["total_seconds"]
 
     printer = language_printer()
 
     for i, user in enumerate(data["data"]):
-        user_total = user["running_total"]["total_seconds"]
+        include = lang_counter()
+        langs = [item for item in user["running_total"]["languages"] if include(item["name"])]
+        if not dash_T:
+            user_total = user["running_total"]["total_seconds"]
+        else:
+            user_total = sum(l["total_seconds"] for l in langs)
         clr = get_clr_from_list_and_cur(data["data"], i)
         print("----------")
         print_line_item(f"{user["user"]["display_name"]}", convertsecs(user_total), user_total / total_time * 100, clr=clr)
-        include = lang_counter()
-        langs = [item for item in user["running_total"]["languages"] if include(item["name"])]
         printer(langs, total_time)
 
     exit()

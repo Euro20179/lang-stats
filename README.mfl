@@ -10,4 +10,4 @@ A program that interacts with [wakapi] | https://github.com/muety/wakapi |
 
     For more help see `./lang-stats -h`
 
-^[1]: `-u` is not required with `-l`
+^[1]: `-u` is not required with `-F leaders`

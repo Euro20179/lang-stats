@@ -374,13 +374,16 @@ if data_fmt == "leaders":
         langs = [k for k, _ in total_langs]
         include = lang_counter()
         skipped = 0
+        total_included_time = 0
         for i, (lang, secs) in enumerate(total_langs):
             if not include(lang):
                 skipped += 1
                 continue
+            total_included_time += secs
             pct = secs / total_time * 100
             clr = get_clr_from_list_and_cur(langs, i - skipped)
             print_line_item(lang, convertsecs(secs), pct, clr=clr)
+        print(f"--------------\nTOTAL: {convertsecs(total_included_time)} ({total_included_time / total_time * 100:.02f}%)")
         exit(0)
 
 

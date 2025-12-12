@@ -373,10 +373,13 @@ if data_fmt == "leaders":
         total_langs = sorted(total_langs.items(), key = lambda k: total_langs[k[0]], reverse = True)
         langs = [k for k, _ in total_langs]
         include = lang_counter()
+        skipped = 0
         for i, (lang, secs) in enumerate(total_langs):
-            if not include(lang): continue
+            if not include(lang):
+                skipped += 1
+                continue
             pct = secs / total_time * 100
-            clr = get_clr_from_list_and_cur(langs, i)
+            clr = get_clr_from_list_and_cur(langs, i - skipped)
             print_line_item(lang, convertsecs(secs), pct, clr=clr)
         exit(0)
 

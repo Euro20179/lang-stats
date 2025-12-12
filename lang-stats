@@ -71,8 +71,8 @@ def gen_help():
         i <names>          : Similar to -x but ONLY show the languages listed with -i
                              Mutually exclusive with -x
         T                  : When using -x or -i,
-                             use the complete total seconds for the percentage instead
-                             of only the total seconds of included langs/projects
+                             use only the sum of the time from the included languages/projects
+                             as the total time instead of the total time of ALL languages/projects
         a <domain>         : use <domain> as the api url base
         A                  : disbale ansi sequences
                              (automatically disabled when stdout is not a terminal)

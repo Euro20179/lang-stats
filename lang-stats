@@ -234,9 +234,9 @@ def lang_counter():
     return include_lang
 
 def print_line_item(name: str, time: str, pct: float, *, clr="35"):
-    text = f"\x1b[{clr}m{name}\x1b[0m" if ansi_enabled else name
+    text = f"\x1b[{clr}m{name}\x1b[0m" if ansi_enabled else name #]]
     text += f" {time} ({pct:.2f}%)"
-    text += "\x1b[0m" if ansi_enabled else ""
+    text += "\x1b[0m" if ansi_enabled else "" #]
     print(text)
 
 def get_clr_from_list_and_cur(l: list[Any], cur: int):
@@ -294,19 +294,17 @@ def language_printer(user_langs = None):
                 for user, dat in sorted(user_langs.items(), key=lambda u: u[1][name], reverse = True):
                     if not dat[name]: continue
                     if ansi_enabled:
-                        print(f"\x1b[2m", end="")
+                        print(f"\x1b[2m", end="") #]
                     print(f"{user} {convertsecs(dat[name])} ({dat[name] / secs * 100:0.2f}%)")
                     if ansi_enabled:
-                        print("\x1b[0m", end="")
+                        print("\x1b[0m", end="") #]
 
             while cur_milestone > 0 and total_pct > cur_milestone:
                 print_line_item(f"{cur_milestone}%-({lang_count})", convertsecs(total_secs), total_pct, clr="35;1")
-                # print(f"\x1b[1m{cur_milestone}%-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
                 cur_milestone = next(milestones_iter, -1)
 
             while cur_time_milestone and total_secs > time2secs(cur_time_milestone):
                 print_line_item(f"{cur_time_milestone}-({lang_count})", convertsecs(total_secs), total_pct, clr="95")
-                # print(f"\x1b[1m{cur_time_milestone}-({lang_count}) {convertsecs(total_secs)} ({total_pct:.2f}%)\x1b[0m")
                 cur_time_milestone = next(time_milestones_iter, "")
 
         return total_secs, total_pct
@@ -347,12 +345,18 @@ class STDData:
     users: list[User | CombinedUser]
     total_seconds: int
     day_count: int
+    total_include_seconds: int = 0
     start: int | None = None
     end: int | None = None
 
     def apply_include(self):
         for user in self.users:
             user.apply_include(self.total_seconds)
+
+    def calculate_total_included_secs(self):
+        for user in self.users:
+            for datapoint in user.datapoints:
+                self.total_include_seconds += datapoint.total_seconds
 
     def print_users(self, users: list[User]):
         for user in users:
@@ -364,16 +368,13 @@ class STDData:
 
             time_total = self.day_count * 86400
 
-            total_secs_included = 0
-
             langs = []
             for item in stats:
-                total_secs_included += item.total_seconds
                 langs.append({"name": item.name, "total_seconds": item.total_seconds, "percent": item.total_seconds / self.total_seconds * 100})
 
             printer = language_printer()
 
-            total_secs, total_pct = printer(langs, total_secs_included)
+            total_secs, total_pct = printer(langs, self.total_include_seconds)
 
             print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
             print(f"--------------\nAVG {convertsecs(round(total_secs / time_total * 86400))} time/day\n")
@@ -387,7 +388,7 @@ class STDData:
     def apply_combine_users(self):
         langs = {}
         user_langs = defaultdict(lambda: defaultdict(int))
-        total_secs_included = 0
+        total_user_seconds = 0
         for user in self.users:
             for datapoint in user.datapoints:
                 user_langs[user.name][datapoint.name] += datapoint.total_seconds
@@ -396,16 +397,15 @@ class STDData:
                     langs[datapoint.name] += datapoint.total_seconds
                 else:
                     langs[datapoint.name] = datapoint.total_seconds
-                total_secs_included += datapoint.total_seconds
+                total_user_seconds += datapoint.total_seconds
 
-        self.users = [CombinedUser("COMBINED", total_secs_included, [
+        self.users = [CombinedUser("COMBINED", total_user_seconds, [
                 DataPoint(name, s) for name, s in langs.items()
                 ], original_users = {u.name: u for u in self.users})]
 
     def print_combined_users(self):
         langs = {}
         user_langs = defaultdict(lambda: defaultdict(int))
-        total_secs_included = 0
         for user in self.users:
             for datapoint in user.datapoints:
                 if isinstance(user, CombinedUser):
@@ -420,12 +420,11 @@ class STDData:
                     langs[datapoint.name] += datapoint.total_seconds
                 else:
                     langs[datapoint.name] = datapoint.total_seconds
-                total_secs_included += datapoint.total_seconds
 
         langs = [{"name": name, "total_seconds": s, "percent": s / self.total_seconds * 100} for name, s in sorted(langs.items(), key = lambda i: i[1], reverse = True)]
 
         printer = language_printer(user_langs)
-        total_secs, total_pct = printer(langs, total_secs_included)
+        total_secs, total_pct = printer(langs, self.total_include_seconds)
         print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
         print(f"--------------\nAVG {convertsecs(round(total_secs / self.total_seconds * 86400))} time/day\n")
 
@@ -530,10 +529,12 @@ for user in user.split(","):
     else:
         exit()
 
-if to_find == "most-used":
+if to_find == "most-used" or output_fmt == "combine-users":
     std.apply_combine_users()
 if include_langs or exclude_langs or top > 0:
     std.apply_include()
+
+std.calculate_total_included_secs()
 
 if output_fmt == "line":
     std.print_line_items()

@@ -63,20 +63,17 @@ data_fmt = "stats"
 output_fmt = "line"
 
 def gen_help():
-    print(f"""lang-stats [TprxiautAefSERlO] [qualifiers...]
-        Use wakapi to print language/project usage stats
-
-        QUALIFIERS:
-          either a percentage (integer) or a time "[h]:[m]:[s]"
+    print(f"""lang-stats [options...] [qualifiers...]
+        ALSO SEE lang-stats(1)
 
         OPTIONS:
+        a <domain>         : use <domain> as the api url base
         u <user>           : the user to print stats for
-        l                  : print the leaderboard
         t <number>         : display the top <number> languages/projects
         p                  : print project times instead of language times
         r <range>          : time range, one of:
-        R                  : print from least -> greatest
                                 {"\n\t\t\t\t".join(valid_ranges)}
+        R                  : print from least -> greatest
         x <names>          : exclude a ',' separated list of languages/projects
                              can be used multiple times.
                              Mutually exclusive with -i
@@ -85,7 +82,6 @@ def gen_help():
         T                  : When using -x or -i,
                              use only the sum of the time from the included languages/projects
                              as the total time instead of the total time of ALL languages/projects
-        a <domain>         : use <domain> as the api url base
         A                  : disbale ansi sequences
                              (automatically disabled when stdout is not a terminal)
         e                  : enable ansi sequences
@@ -107,15 +103,6 @@ def gen_help():
         E <end>            : end time
                              sets -F to summary as it's necessary
                              also sets -r to ''
-
-        --find <most-used> : finds the most used languages accross all users
-                             same as -o combine-users -F leaders
-
-        --gt <qual>        : only include languages/projects greater than
-                             a qualifier
-
-        --lt <qual>        : only include languages/projects less than
-                             a qualifier
 
         ARGUMENTS:
         qualifiers... :
@@ -198,7 +185,7 @@ for opt, optarg in opts:
             print(f"Invalid option {INVALID}", file=sys.stderr)
             exit(1)
 
-if not api:
+if not api and not read_from:
     print("No api url given", file=sys.stderr)
     exit(1)
 

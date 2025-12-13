@@ -1,0 +1,5 @@
+#!/bin/sh
+: "${INSTALL_BASE:=/usr/local}"
+set -x
+sudo install -m755 lang-stats "$INSTALL_BASE/bin"
+sudo install -m644 lang-stats.1 "$INSTALL_BASE/share/man/man1"

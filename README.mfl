@@ -2,6 +2,14 @@
 
 A program that interacts with [wakapi] | https://github.com/muety/wakapi |
 
+== Install ==
+The `INSTALL_BASE` environment variable may be set to a root directory where
+you want to install lang-stats.
+By default it is `/usr/local`
+Run: >sh
+./install
+<
+
 == Usage ==
     the `-a` and `-u`^[1] options are *REQUIRED*.
 

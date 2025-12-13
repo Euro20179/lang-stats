@@ -1,0 +1,236 @@
+.TH LANG-STATS 1
+.SH NAME
+lang-stats - a wakatime cli utility
+
+.SH SYNOPSIS
+.B lang-stats -a <apiurl> [opts...] [qualifiers...]
+
+.SH DESCRIPTION
+Filters and displays wakatime api statistics from an apiurl
+based on specific filters and
+.I QUALIFIERS
+\&.
+
+.SH ARGUMENTS
+The "[qualifiers...]" argument is a list of
+.I QUALIFIERS
+where a divider gets printed with the total percentage and time.
+By default the qualifiers are
+.B 50
+\&. A line will be printed at
+.B 50%
+
+.SH OPTIONS
+.TP
+.BR \-a  " <apiurl>"
+Use apiurl as the api.
+This argument is
+.B REQUIRED
+if
+.I \-f
+is not specified.
+
+.TP
+.BR \-u " <user...>"
+A "," separated list of users to lookup if \-F is stats.
+Only useful in automatic mode
+
+.TP
+.BR \-p
+Instead of printing language stats, print project stats
+(if the user has it public).
+
+.TP
+.BR \-r " <range>"
+A wakatime range to use, only useful in
+.I automatic
+mode and with the
+.I stats
+or
+.I summary
+formats
+.RS
+.nr PI 2n
+Valid ranges:
+.IP \[bu]
+today (t)
+.IP \[bu]
+yesterday
+.IP \[bu]
+week (w)
+.IP \[bu]
+month (m)
+.IP \[bu]
+year
+.IP \[bu]
+last_7_days
+.IP \[bu]
+7_days
+.IP \[bu]
+last_30_days (30)
+.IP \[bu]
+30_days
+.IP \[bu]
+last_6_months
+.IP \[bu]
+6_months
+.IP \[bu]
+last_12_months
+.IP \[bu]
+12_months
+.IP \[bu]
+last_year
+.IP \[bu]
+any
+.IP \[bu]
+all_time
+.RE
+
+.BR \-S " <start>"
+The starting time in the format YYYY-mm-dd. Only useful with the
+.I summary
+format.
+
+.BR \-E " <end>"
+The ending time, in the same format as
+.I \-S
+Also only works in the
+.I summary
+format.
+
+.BR \-x " <names>"
+A "," separated list of languages to
+.B exclude
+
+.BR \-i " <names>"
+A "," separated list of languages to
+.B include
+
+.BR \-t " <count>"
+Only include the top <count> languages
+
+.BR \-\-gt " <qualifier>"
+Only include languages greater than <qualifier>
+
+.BR \-\-lt " <qualifier>"
+Only include languages less than <qualifier>
+.RS
+.P
+.B NOTE:
+A range may be created by using both
+.I \-\-lt
+and
+.I \-\-gt
+\&. For example
+.B lang-stats \-\-gt 30 \-\-lt 50
+will only print languages between 30 and 50%
+.RE
+
+.BR \-T
+Instead of using the total number of seconds from the given data,
+use the total number of seconds from the final list of included languages.
+
+.BR \-F " <format>"
+Specify the format as listed in the
+.I FORMATS
+section.
+
+.BR \-O " <output-format>"
+Specify the output format as listed in the
+.I OUTPUT FORMATS
+section.
+
+.BR \-f " <file>"
+Read data from file in the specified
+.I format
+\&. If file is "-" read from stdin
+
+.BR \-\-find " <most-users>"
+The value
+.B MUST
+be equal to "most-users" which acts the same as:
+.RS
+.B "\-O combine-users \-F leaders"
+.RE
+
+.BR \-R
+Print least to greatest instead of greatest to least
+
+.BR \-A
+Disable ansi sequences (disabled by default if stdout
+.B "is not"
+a tty)
+
+.BR \-e
+Enable ansi sequences (enabled by default if stdout
+.B is
+a tty)
+
+.SH MODES
+There are 2 modes:
+.IP \[bu]
+.B manual
+.IP \[bu]
+.B automatic
+(deafult)
+.P
+The mode may not be changed directly, instead it is changed with the
+.I \-f
+option which specifies a file to get the data from.
+Some options only work in a specific mode
+
+.SH FORMATS
+There are 3 formats:
+.IP \[bu]
+.B stats
+(default)
+.IP \[bu]
+.B summary
+.IP \[bu]
+.B leaders
+.P
+The format is which api format to use, stats will use the /stats endpoint,
+summary will use the /summaries endpoint, and leaders will use the /leaders endpoint.
+the format may be changed with that.
+.I \-F
+flag, and
+.B MUST
+be specified when using
+.I \-f
+if you are not using the
+.I stats
+format
+
+.SH OUTPUT FORMATS
+The output format may be one of
+.RS
+.IP \[bu]
+.B line (default)
+.IP \[bu]
+.B combine-users
+.RE
+.P
+If the line format is requested, it will print each user,
+and each user's languages in order. The combine-users format will instead group
+all user's languages together and print each user's usage of that
+language underneath the language.
+
+.SH QUALIFIERS
+A qualifier is a string that represents a percentage or time value.
+.P
+Percentages may be represented by a float such as
+.B 50
+or
+.B 5.5
+.P
+Times may be represented in the format [h]:[m]:[s] where
+h, m, and s are all optional but the ":" are not. For example:
+.B 5::
+(5 hours)
+.B :30:
+(30 minutes)
+.B 1:20:
+(1 hour 20 minutes)
+.SH SEE ALSO
+the wakapi api:
+.I https://wakapi.dev/swagger-ui/swagger-ui/index.html

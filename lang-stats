@@ -546,6 +546,9 @@ for user in user.split(","):
 
 if to_find == "most-used" or output_fmt == "combine-users":
     std.apply_combine_users()
+
+std.calculate_total_included_secs()
+
 if include_langs or exclude_langs or top > 0:
     std.apply_include()
 

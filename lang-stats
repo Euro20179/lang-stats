@@ -25,6 +25,7 @@ time_milestones: list[str] = []
 to_find = ""
 
 qual_gt = ""
+qual_lt = ""
 
 api = ""
 user = ""
@@ -113,6 +114,9 @@ def gen_help():
         --gt <qual>        : only include languages/projects greater than
                              a qualifier
 
+        --lt <qual>        : only include languages/projects less than
+                             a qualifier
+
         ARGUMENTS:
         qualifiers... :
                     each arg is treated as a percentage or time to print to label
@@ -122,12 +126,14 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find=", "gt="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find=", "gt=", "lt="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
         case 'gt':
             qual_gt = optarg
+        case 'lt':
+            qual_lt = optarg
         case 'find':
             valid_finds = ("most-used",)
             to_find = optarg
@@ -322,15 +328,21 @@ class User:
             new.append(datapoint)
         self.datapoints = new
 
-    def apply_qual(self, total_seconds: int, qual_gt = ""):
+    def apply_qual(self, total_seconds: int, qual_gt = "", qual_lt = ""):
         new = []
-        milestones, time_milestones = parse_qualifiers([qual_gt])
+        milestones_gt, time_milestones_gt = parse_qualifiers([qual_gt])
+        milestones_lt, time_milestones_lt = parse_qualifiers([qual_lt])
         for datapoint in self.datapoints:
-
-            if milestones and datapoint.total_seconds / total_seconds * 100 < milestones[0]:
+            if milestones_gt and datapoint.total_seconds / total_seconds * 100 < milestones_gt[0]:
                 continue
 
-            if time_milestones and datapoint.total_seconds < time2secs(time_milestones[0]):
+            if time_milestones_gt and datapoint.total_seconds < time2secs(time_milestones_gt[0]):
+                continue
+
+            if milestones_lt and datapoint.total_seconds / total_seconds * 100 > milestones_lt[0]:
+                continue
+
+            if time_milestones_lt and datapoint.total_seconds > time2secs(time_milestones_lt[0]):
                 continue
 
             new.append(datapoint)
@@ -360,10 +372,9 @@ class STDData:
         #we removed some items, we should recaulcate the total included secs
         self.calculate_total_included_secs()
 
-    def apply_qual(self, qual_gt = ""):
-        if not qual_gt: return
+    def apply_qual(self, qual_gt = "", qual_lt = ""):
         for user in self.users:
-            user.apply_qual(self.total_include_seconds, qual_gt)
+            user.apply_qual(self.total_include_seconds, qual_gt, qual_lt)
         #we removed some items, we should recaulcate the total included secs
         self.calculate_total_included_secs()
 
@@ -449,7 +460,8 @@ def parse_qualifiers(quals: list[str]):
     for qual in quals:
         if ":" in qual:
             time_milestones.append(qual)
-        else:
+        #qual must not be empty string
+        elif qual:
             milestones.append(float(qual))
     return milestones, time_milestones
 
@@ -552,7 +564,7 @@ std.calculate_total_included_secs()
 if include_langs or exclude_langs or top > 0:
     std.apply_include()
 
-std.apply_qual(qual_gt)
+std.apply_qual(qual_gt, qual_lt)
 
 if output_fmt == "line":
     std.print_line_items()

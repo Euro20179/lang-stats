@@ -24,6 +24,8 @@ time_milestones: list[str] = []
 
 to_find = ""
 
+qual_gt = ""
+
 api = ""
 user = ""
 
@@ -60,8 +62,11 @@ data_fmt = "stats"
 output_fmt = "line"
 
 def gen_help():
-    print(f"""lang-stats [TprxiautAefSERlO] [percentage...]
+    print(f"""lang-stats [TprxiautAefSERlO] [qualifiers...]
         Use wakapi to print language/project usage stats
+
+        QUALIFIERS:
+          either a percentage (integer) or a time "[h]:[m]:[s]"
 
         OPTIONS:
         u <user>           : the user to print stats for
@@ -105,8 +110,11 @@ def gen_help():
         --find <most-used> : finds the most used languages accross all users
                              same as -o combine-users -F leaders
 
+        --gt <qual>        : only include languages/projects greater than
+                             a qualifier
+
         ARGUMENTS:
-        percentage... :
+        qualifiers... :
                     each arg is treated as a percentage or time to print to label
                     how many languages are needed to add up
                     to that percentage or time. If only "0" is provided as a
@@ -114,10 +122,12 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find=", "gt="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
+        case 'gt':
+            qual_gt = optarg
         case 'find':
             valid_finds = ("most-used",)
             to_find = optarg
@@ -203,7 +213,7 @@ def time2secs(time: str):
 def lang_counter():
     langs_included = 0
 
-    def include_lang(lang: str):
+    def include_lang(lang: str, time_secs: int, pct: float):
         nonlocal langs_included
 
         lang = lang.lower()
@@ -215,12 +225,8 @@ def lang_counter():
 
         if exclude_langs and lang in exclude_langs:
             return False
-        elif exclude_langs:
-            return True
 
-        if include_langs and lang in include_langs:
-            return True
-        elif include_langs:
+        if include_langs and lang not in include_langs:
             return False
 
         return True
@@ -266,6 +272,16 @@ def language_printer(user_langs = None):
             else:
                 pct = item["percent"]
 
+            if qual_gt:
+                milestones, time_milestones = parse_qualifiers([qual_gt])
+
+                if milestones and pct < milestones[0]:
+                    continue
+
+                if time_milestones and secs < time2secs(time_milestones[0]):
+                    continue
+
+
             total_pct += pct
 
             total_secs += secs
@@ -308,11 +324,11 @@ class User:
     total_seconds: int
     datapoints: list[DataPoint]
 
-    def apply_include(self):
+    def apply_include(self, total_seconds: int):
         include = lang_counter()
         new = []
         for datapoint in self.datapoints:
-            if not include(datapoint.name):
+            if not include(datapoint.name, datapoint.total_seconds, datapoint.total_seconds / total_seconds * 100):
                 continue
             new.append(datapoint)
         self.datapoints = new
@@ -336,7 +352,7 @@ class STDData:
 
     def apply_include(self):
         for user in self.users:
-            user.apply_include()
+            user.apply_include(self.total_seconds)
 
     def print_users(self, users: list[User]):
         for user in users:
@@ -413,14 +429,18 @@ class STDData:
         print(f"--------------\nTOTAL: {convertsecs(total_secs)} ({total_pct:.02f}%)")
         print(f"--------------\nAVG {convertsecs(round(total_secs / self.total_seconds * 86400))} time/day\n")
 
-if args:
+def parse_qualifiers(quals: list[str]):
     milestones = []
     time_milestones = []
-    for arg in args:
-        if ":" in arg:
-            time_milestones.append(arg)
+    for qual in quals:
+        if ":" in qual:
+            time_milestones.append(qual)
         else:
-            milestones.append(float(arg))
+            milestones.append(float(qual))
+    return milestones, time_milestones
+
+if args:
+    milestones, time_milestones = parse_qualifiers(args)
 
 std = STDData([], 0, 0)
 

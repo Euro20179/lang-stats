@@ -422,91 +422,93 @@ if args:
         else:
             milestones.append(float(arg))
 
-if read_from:
-    if read_from == "-":
-        raw = json.loads("".join(sys.stdin.readlines()))
+std = STDData([], 0, 0)
+
+for user in user.split(","):
+    if read_from:
+        if read_from == "-":
+            raw = json.loads("".join(sys.stdin.readlines()))
+        else:
+            with open(read_from) as f:
+                raw = json.load(f)
+
+    elif data_fmt == "stats":
+        raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}")
+        raw = raw.json()
+    elif data_fmt == "leaders":
+        req = requests.get(f"{api}/api/compat/wakatime/v1/leaders")
+        raw = req.json()
     else:
-        with open(read_from) as f:
-            raw = json.load(f)
+        key = os.getenv("WAKA_KEY")
+        if not key:
+            print("the $WAKA_KEY env var must be set to use -F without -f", file=sys.stderr)
+            exit(1)
+        params = {}
+        if used_range:
+            params["range"] = used_range
+        elif start_time == '' or end_time == '':
+            print("Cannot use -F summary with no -f without setting -S AND -E", file=sys.stderr)
+            exit(1)
+        if start_time:
+            params["start"] = start_time
+            params["end"] = end_time
+        raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/summaries", params=params, headers={
+            "Authorization": f"Basic {key}"
+            })
+        raw = raw.json()
 
-elif data_fmt == "stats":
-    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}")
-    raw = raw.json()
-elif data_fmt == "leaders":
-    req = requests.get(f"{api}/api/compat/wakatime/v1/leaders")
-    raw = req.json()
-else:
-    key = os.getenv("WAKA_KEY")
-    if not key:
-        print("the $WAKA_KEY env var must be set to use -F without -f", file=sys.stderr)
-        exit(1)
-    params = {}
-    if used_range:
-        params["range"] = used_range
-    elif start_time == '' or end_time == '':
-        print("Cannot use -F summary with no -f without setting -S AND -E", file=sys.stderr)
-        exit(1)
-    if start_time:
-        params["start"] = start_time
-        params["end"] = end_time
-    raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/summaries", params=params, headers={
-        "Authorization": f"Basic {key}"
-        })
-    raw = raw.json()
-
-if data_fmt == "stats":
-    std = STDData(
-        users = [
-            User(
-                raw["data"]["username"],
-                raw["data"]["total_seconds"],
-                [DataPoint(name=l["name"], total_seconds=l["total_seconds"]) for l in raw["data"][section]]
-            )
-        ],
-        total_seconds = raw["data"]["total_seconds"],
-        day_count = raw["data"]["days_including_holidays"] + 1,
-    )
-elif data_fmt == "leaders":
-    start_ts = datetime.datetime.strptime(raw["range"]["start_date"][0:10], "%Y-%m-%d")
-    end_ts = datetime.datetime.strptime(raw["range"]["end_date"][0:10], "%Y-%m-%d")
-    day_count = int((end_ts.timestamp() - start_ts.timestamp()) / 86400)
-    total_seconds = 0
-    for user in raw["data"]:
-        total_seconds += user["running_total"]["total_seconds"]
-    std = STDData(
-            users = [User(
-                         u["user"]["display_name"],
-                         u["running_total"]["total_seconds"],
-                         [DataPoint(**d) for d in u["running_total"]["languages"]]
-                     ) for u in raw["data"]
-                     ],
-            day_count = day_count,
-            total_seconds = total_seconds
-    )
-elif data_fmt == "summary":
-    day_count = raw["daily_average"]["days_including_holidays"]
-    datapoints = {}
-    seconds = 0
-    for day in raw["data"]:
-        start = day["range"]["start"][0:19]
-        end = day["range"]["end"][0:19]
-        day = day[section]
-        for dp in day:
-            seconds += dp["total_seconds"]
-            if datapoints.get(dp["name"]):
-                datapoints[dp["name"]] += dp["total_seconds"]
-            else:
-                datapoints[dp["name"]] = dp["total_seconds"]
-
-    datapoints = [DataPoint(name = name, total_seconds = s) for name, s in sorted(datapoints.items(), key = lambda i: i[1], reverse = True)]
-    std = STDData(
-            day_count = day_count,
-            total_seconds = seconds,
-            users = [User(name = user or "UNKNOWN", datapoints = datapoints, total_seconds = seconds)]
+    if data_fmt == "stats":
+        std.users.append(
+                User(
+                    raw["data"]["username"],
+                    raw["data"]["total_seconds"],
+                    [DataPoint(name=l["name"], total_seconds=l["total_seconds"]) for l in raw["data"][section]]
+                )
         )
+        std.total_seconds += raw["data"]["total_seconds"]
+        #not += because it's not communitive
+        std.day_count = raw["data"]["days_including_holidays"] + 1
 
-else:
-    exit()
+    #-Fleaders ignores -u
+    elif data_fmt == "leaders":
+        start_ts = datetime.datetime.strptime(raw["range"]["start_date"][0:10], "%Y-%m-%d")
+        end_ts = datetime.datetime.strptime(raw["range"]["end_date"][0:10], "%Y-%m-%d")
+        day_count = int((end_ts.timestamp() - start_ts.timestamp()) / 86400)
+        total_seconds = 0
+        for user in raw["data"]:
+            total_seconds += user["running_total"]["total_seconds"]
+        std = STDData(
+                users = [User(
+                             u["user"]["display_name"],
+                             u["running_total"]["total_seconds"],
+                             [DataPoint(**d) for d in u["running_total"]["languages"]]
+                         ) for u in raw["data"]
+                         ],
+                day_count = day_count,
+                total_seconds = total_seconds
+        )
+    elif data_fmt == "summary":
+        day_count = raw["daily_average"]["days_including_holidays"]
+        datapoints = {}
+        seconds = 0
+        for day in raw["data"]:
+            start = day["range"]["start"][0:19]
+            end = day["range"]["end"][0:19]
+            day = day[section]
+            for dp in day:
+                seconds += dp["total_seconds"]
+                if datapoints.get(dp["name"]):
+                    datapoints[dp["name"]] += dp["total_seconds"]
+                else:
+                    datapoints[dp["name"]] = dp["total_seconds"]
+
+        datapoints = [DataPoint(name = name, total_seconds = s) for name, s in sorted(datapoints.items(), key = lambda i: i[1], reverse = True)]
+        std.day_count = day_count
+        std.total_seconds += seconds
+        std.users.append(User(name = user or "UNKNOWN", datapoints = datapoints, total_seconds = seconds))
+
+    else:
+        exit()
 
 if to_find == "most-used":
     std.apply_combine_users()

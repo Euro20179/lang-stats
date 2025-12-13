@@ -272,15 +272,6 @@ def language_printer(user_langs = None):
             else:
                 pct = item["percent"]
 
-            if qual_gt:
-                milestones, time_milestones = parse_qualifiers([qual_gt])
-
-                if milestones and pct < milestones[0]:
-                    continue
-
-                if time_milestones and secs < time2secs(time_milestones[0]):
-                    continue
-
 
             total_pct += pct
 
@@ -331,6 +322,20 @@ class User:
             new.append(datapoint)
         self.datapoints = new
 
+    def apply_qual(self, total_seconds: int, qual_gt = ""):
+        new = []
+        milestones, time_milestones = parse_qualifiers([qual_gt])
+        for datapoint in self.datapoints:
+
+            if milestones and datapoint.total_seconds / total_seconds * 100 < milestones[0]:
+                continue
+
+            if time_milestones and datapoint.total_seconds < time2secs(time_milestones[0]):
+                continue
+
+            new.append(datapoint)
+        self.datapoints = new
+
     def getdpByName(self, name: str):
         v = filter(lambda k: k.name == name, self.datapoints)
         for res in v:
@@ -352,8 +357,18 @@ class STDData:
     def apply_include(self):
         for user in self.users:
             user.apply_include(self.total_seconds)
+        #we removed some items, we should recaulcate the total included secs
+        self.calculate_total_included_secs()
+
+    def apply_qual(self, qual_gt = ""):
+        if not qual_gt: return
+        for user in self.users:
+            user.apply_qual(self.total_include_seconds, qual_gt)
+        #we removed some items, we should recaulcate the total included secs
+        self.calculate_total_included_secs()
 
     def calculate_total_included_secs(self):
+        self.total_include_seconds = 0
         for user in self.users:
             for datapoint in user.datapoints:
                 self.total_include_seconds += datapoint.total_seconds
@@ -534,7 +549,7 @@ if to_find == "most-used" or output_fmt == "combine-users":
 if include_langs or exclude_langs or top > 0:
     std.apply_include()
 
-std.calculate_total_included_secs()
+std.apply_qual(qual_gt)
 
 if output_fmt == "line":
     std.print_line_items()

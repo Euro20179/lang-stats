@@ -405,11 +405,9 @@ class STDData:
 
     def apply_combine_users(self):
         langs = {}
-        user_langs = defaultdict(lambda: defaultdict(int))
         total_user_seconds = 0
         for user in self.users:
             for datapoint in user.datapoints:
-                user_langs[user.name][datapoint.name] += datapoint.total_seconds
 
                 if langs.get(datapoint.name):
                     langs[datapoint.name] += datapoint.total_seconds
@@ -417,6 +415,7 @@ class STDData:
                     langs[datapoint.name] = datapoint.total_seconds
                 total_user_seconds += datapoint.total_seconds
 
+        langs = {k: v for k, v in sorted(langs.items(), key=lambda k: k[1], reverse = True)}
         self.users = [CombinedUser("COMBINED", total_user_seconds, [
                 DataPoint(name, s) for name, s in langs.items()
                 ], original_users = {u.name: u for u in self.users})]

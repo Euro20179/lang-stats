@@ -162,10 +162,8 @@ Read data from file in the specified
 .BR \-\-find " <most-users>"
 The value
 .B MUST
-be equal to "most-users" which acts the same as:
-.RS
-.B "\-O combine-users \-F leaders"
-.RE
+be equal to "most-users" which combines all user's language usage into
+a pseudo user that will act as the user in which data is filtered and printed.
 
 .TP
 .BR \-R
@@ -228,9 +226,10 @@ The output format may be one of
 .RE
 .P
 If the line format is requested, it will print each user,
-and each user's languages in order. The combine-users format will instead group
-all user's languages together and print each user's usage of that
-language underneath the language.
+and each user's languages in order.
+The combine-users format will print each included language for each user
+as a combined list, and each user's usage of that language.
+
 
 .SH QUALIFIERS
 A qualifier is a string that represents a percentage or time value.

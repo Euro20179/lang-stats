@@ -373,6 +373,7 @@ class STDData:
             for datapoint in user.datapoints:
                 self.total_include_seconds += datapoint.total_seconds
 
+
     def print_users(self, users: list[User]):
         for user in users:
             if len(users) > 1:
@@ -547,7 +548,7 @@ for user in user.split(","):
     else:
         exit()
 
-if to_find == "most-used" or output_fmt == "combine-users":
+if to_find == "most-used":
     std.apply_combine_users()
 
 std.calculate_total_included_secs()

@@ -86,11 +86,13 @@ any
 all_time
 .RE
 
+.TP
 .BR \-S " <start>"
 The starting time in the format YYYY-mm-dd. Only useful with the
 .I summary
 format.
 
+.TP
 .BR \-E " <end>"
 The ending time, in the same format as
 .I \-S
@@ -98,20 +100,25 @@ Also only works in the
 .I summary
 format.
 
+.TP
 .BR \-x " <names>"
 A "," separated list of languages to
 .B exclude
 
+.TP
 .BR \-i " <names>"
 A "," separated list of languages to
 .B include
 
+.TP
 .BR \-t " <count>"
 Only include the top <count> languages
 
+.TP
 .BR \-\-gt " <qualifier>"
 Only include languages greater than <qualifier>
 
+.TP
 .BR \-\-lt " <qualifier>"
 Only include languages less than <qualifier>
 .RS
@@ -126,10 +133,12 @@ and
 will only print languages between 30 and 50%
 .RE
 
+.TP
 .BR \-T
 Instead of using the total number of seconds from the given data,
 use the total number of seconds from the final list of included languages.
 
+.TP
 .BR \-F " <format>"
 Specify the format as listed in the
 .I FORMATS
@@ -137,16 +146,19 @@ section. Using this option sets \-r to "today" if \-S has not been set yet AND
 \-r is set to "any" (the default) or "all_time". The reason for this is that
 when \-r is one of those values, /summaries hangs forever.
 
+.TP
 .BR \-O " <output-format>"
 Specify the output format as listed in the
 .I OUTPUT FORMATS
 section.
 
+.TP
 .BR \-f " <file>"
 Read data from file in the specified
 .I format
 \&. If file is "-" read from stdin
 
+.TP
 .BR \-\-find " <most-users>"
 The value
 .B MUST
@@ -155,14 +167,17 @@ be equal to "most-users" which acts the same as:
 .B "\-O combine-users \-F leaders"
 .RE
 
+.TP
 .BR \-R
 Print least to greatest instead of greatest to least
 
+.TP
 .BR \-A
 Disable ansi sequences (disabled by default if stdout
 .B "is not"
 a tty)
 
+.TP
 .BR \-e
 Enable ansi sequences (enabled by default if stdout
 .B is

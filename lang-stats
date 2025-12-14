@@ -1,14 +1,16 @@
 #!/bin/python
-from dataclasses import dataclass
 import getopt
 import sys
 import os
 import json
 import datetime
-from collections import defaultdict
-from typing import Any
 
-import requests
+from dataclasses import dataclass
+from collections import defaultdict
+from urllib import request
+from urllib.parse import urlencode
+
+from typing import Any
 
 section = "languages"
 exclude_langs: list[str] = []
@@ -471,11 +473,13 @@ for user in user.split(","):
                 raw = json.load(f)
 
     elif data_fmt == "stats":
-        raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}")
-        raw = raw.json()
+        with request.urlopen(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}") as res:
+            html = res.read()
+            raw = json.loads(html)
     elif data_fmt == "leaders":
-        req = requests.get(f"{api}/api/compat/wakatime/v1/leaders")
-        raw = req.json()
+        with request.urlopen(f"{api}/api/compat/wakatime/v1/leaders") as res:
+            html = res.read()
+            raw = json.loads(html)
     else:
         key = os.getenv("WAKA_KEY")
         if not key:
@@ -490,10 +494,14 @@ for user in user.split(","):
         if start_time:
             params["start"] = start_time
             params["end"] = end_time
-        raw = requests.get(f"{api}/api/compat/wakatime/v1/users/{user}/summaries", params=params, headers={
+        params = urlencode(params)
+        req = request.Request(f"{api}/api/compat/wakatime/v1/users/{user}/summaries?{params}", headers={
             "Authorization": f"Basic {key}"
             })
-        raw = raw.json()
+        with request.urlopen(req) as res:
+            html = res.read()
+            raw = json.loads(html)
+
 
     if data_fmt == "stats":
         std.users.append(

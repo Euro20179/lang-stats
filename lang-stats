@@ -177,7 +177,9 @@ for opt, optarg in opts:
             end_time = optarg
         case 'F':
             data_fmt = optarg
-            used_range = "today"
+            #see -F in lang-stats(1)
+            if not start_time and (used_range == "any" or used_range == "all_time"):
+                used_range = "today"
         case 'h':
             gen_help()
             exit()
@@ -375,6 +377,9 @@ class STDData:
         for user in users:
             if len(users) > 1:
                 print(f"- {user.name.upper()} -")
+            if user.total_seconds <= 0:
+                print(f"{user.name.upper()} has not coded within the range {used_range if used_range else start_time + ' .. ' + end_time}")
+                continue
             stats = user.datapoints
             if print_reversed:
                 stats = [*reversed(stats)]

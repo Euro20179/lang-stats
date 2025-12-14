@@ -133,7 +133,9 @@ use the total number of seconds from the final list of included languages.
 .BR \-F " <format>"
 Specify the format as listed in the
 .I FORMATS
-section.
+section. Using this option sets \-r to "today" if \-S has not been set yet AND
+\-r is set to "any" (the default) or "all_time". The reason for this is that
+when \-r is one of those values, /summaries hangs forever.
 
 .BR \-O " <output-format>"
 Specify the output format as listed in the

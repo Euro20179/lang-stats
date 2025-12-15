@@ -58,6 +58,7 @@ valid_ranges=[
 used_range = "any"
 start_time = ""
 end_time = ""
+for_project = ""
 
 read_from = ""
 data_fmt = "stats"
@@ -105,6 +106,7 @@ def gen_help():
         E <end>            : end time
                              sets -F to summary as it's necessary
                              also sets -r to ''
+        P <project>        : apply a project filter to the wakatime call
 
         ARGUMENTS:
         qualifiers... :
@@ -115,7 +117,7 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:", ["find=", "gt=", "lt="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:", ["find=", "gt=", "lt="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
@@ -174,9 +176,13 @@ for opt, optarg in opts:
         case 'S':
             used_range = ""
             start_time = optarg
+            data_fmt = "summary"
         case 'E':
             used_range = ""
             end_time = optarg
+            data_fmt = "summary"
+        case 'P':
+            for_project = optarg
         case 'F':
             data_fmt = optarg
             #see -F in lang-stats(1)
@@ -473,7 +479,12 @@ for user in user.split(","):
                 raw = json.load(f)
 
     elif data_fmt == "stats":
-        with request.urlopen(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}") as res:
+        query = ""
+        params = {}
+        if for_project:
+            params["project"] = for_project
+        params = urlencode(params)
+        with request.urlopen(f"{api}/api/compat/wakatime/v1/users/{user}/stats/{used_range}?{params}") as res:
             html = res.read()
             raw = json.loads(html)
     elif data_fmt == "leaders":
@@ -494,6 +505,8 @@ for user in user.split(","):
         if start_time:
             params["start"] = start_time
             params["end"] = end_time
+        if for_project:
+            params["project"] = for_project
         params = urlencode(params)
         req = request.Request(f"{api}/api/compat/wakatime/v1/users/{user}/summaries?{params}", headers={
             "Authorization": f"Basic {key}"

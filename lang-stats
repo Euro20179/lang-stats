@@ -114,6 +114,7 @@ def gen_help():
                     how many languages are needed to add up
                     to that percentage or time. If only "0" is provided as a
                     percentage, no percentage or time will be printed.
+                    see lang-stats(1) for more info
 """)
 
 args = sys.argv

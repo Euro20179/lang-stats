@@ -96,6 +96,11 @@ all_time
 The starting time in the format YYYY-mm-dd. Only useful with the
 .I summary
 format.
+If only
+.I\-S
+is given,
+.I \-E
+is implied to be the current day.
 
 .TP
 .BR \-E " <end>"
@@ -104,6 +109,11 @@ The ending time, in the same format as
 Also only works in the
 .I summary
 format.
+If
+.I \-E
+is given,
+.I \-S
+MUST also be given
 
 .TP
 .BR \-P " <project>"

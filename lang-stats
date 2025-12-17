@@ -542,6 +542,8 @@ for user in user.split(","):
         params = {}
         if used_range:
             params["range"] = used_range
+        elif start_time != "" and end_time == "":
+            end_time = datetime.datetime.now().strftime("%Y-%m-%d")
         elif start_time == '' or end_time == '':
             print("Cannot use -F summary with no -f without setting -S AND -E", file=sys.stderr)
             exit(1)

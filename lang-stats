@@ -74,6 +74,8 @@ def gen_help():
         u <user>           : the user to print stats for
         t <number>         : display the top <number> languages/projects
         p                  : print project times instead of language times
+                             (same as --section=projects)
+          --section        : use a specific section (default: languages)
         r <range>          : time range, one of:
                                 {"\n\t\t\t\t".join(valid_ranges)}
         R                  : print from least -> greatest
@@ -118,7 +120,7 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:", ["find=", "gt=", "lt="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:", ["find=", "gt=", "lt=", "section="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
@@ -126,6 +128,8 @@ for opt, optarg in opts:
             qual_gt = optarg
         case 'lt':
             qual_lt = optarg
+        case 'section':
+            section = optarg
         case 'find':
             valid_finds = ("most-used",)
             to_find = optarg

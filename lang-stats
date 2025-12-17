@@ -16,6 +16,15 @@ section = "languages"
 exclude_langs: list[str] = []
 include_langs: list[str] = []
 
+"""
+{
+        "small-project1": "BIG_PROJECT",
+        "small-project2": "BIG_PROJECT"
+}
+will combine all stats for small-project1 and small-project2 as BIG_PROJECT
+"""
+combine_as: dict[str, str] = {}
+
 use_included_total = 0
 
 print_reversed = 0
@@ -120,10 +129,16 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:", ["find=", "gt=", "lt=", "section="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:C:", ["find=", "gt=", "lt=", "section="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
+        case 'C':
+            for pair in optarg.split(":"):
+                umbrella, langs = pair.split("=")
+                langs = langs.split(",")
+                for lang in langs:
+                    combine_as[lang] = umbrella
         case 'gt':
             qual_gt = optarg
         case 'lt':
@@ -330,6 +345,24 @@ class User:
             new.append(datapoint)
         self.datapoints = new
 
+    def apply_combine(self, combine_as: dict[str, str]):
+        new = []
+        combined_dps: defaultdict[str, str] = defaultdict(str)
+        combined_dps_time: defaultdict[str, int] = defaultdict(int)
+        for dp in self.datapoints:
+            if dp.name in combine_as:
+                combined_dps[dp.name] = combine_as[dp.name]
+                combined_dps_time[combine_as[dp.name]] += dp.total_seconds
+            else:
+                new.append(dp)
+
+        for combined_lang, time in combined_dps_time.items():
+            new.append(DataPoint(combined_lang, time))
+
+        new = sorted(new, key=lambda d: d.total_seconds, reverse = True)
+
+        self.datapoints = new
+
     def apply_qual(self, total_seconds: int, qual_gt = "", qual_lt = ""):
         new = []
         milestones_gt, time_milestones_gt = parse_qualifiers([qual_gt])
@@ -378,6 +411,11 @@ class STDData:
         for user in self.users:
             user.apply_qual(self.total_include_seconds, qual_gt, qual_lt)
         #we removed some items, we should recaulcate the total included secs
+        self.calculate_total_included_secs()
+
+    def apply_combine(self, combine_as: dict[str, str]):
+        for user in self.users:
+            user.apply_combine(combine_as)
         self.calculate_total_included_secs()
 
     def calculate_total_included_secs(self):
@@ -578,6 +616,8 @@ if to_find == "most-used":
     std.apply_combine_users()
 
 std.calculate_total_included_secs()
+
+std.apply_combine(combine_as)
 
 if include_langs or exclude_langs or top > 0:
     std.apply_include()

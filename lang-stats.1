@@ -132,6 +132,12 @@ A "," separated list of languages to
 Only include the top <count> languages
 
 .TP
+.BR \-C " <names>"
+A ":" separated list of name=n1,n2,n3 pairs.
+name is a name of which to group n1,n2,n3 under. For example:
+.B \-C markup_langs=markdown,asciidoc:low_level=c,cpp,rust
+
+.TP
 .BR \-\-gt " <qualifier>"
 Only include languages greater than <qualifier>
 

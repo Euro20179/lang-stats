@@ -241,8 +241,6 @@ def lang_counter():
 
         lang = lang.lower()
 
-        langs_included += 1
-
         if top > 0 and langs_included > top:
             return False
 
@@ -251,6 +249,12 @@ def lang_counter():
 
         if include_langs and lang not in include_langs:
             return False
+
+        #this needs to be at the bottom so that -t is more powerful than -x
+        #ie: if -t10 and -xhtml are given, even if html is in the top 10
+        #we still get 10 results, as opposed to 9 if this is
+        #above the other qualifiers
+        langs_included += 1
 
         return True
 

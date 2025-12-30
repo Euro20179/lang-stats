@@ -241,7 +241,7 @@ def lang_counter():
 
         lang = lang.lower()
 
-        if top > 0 and langs_included > top:
+        if top > 0 and langs_included >= top:
             return False
 
         if exclude_langs and lang in exclude_langs:

@@ -166,6 +166,8 @@ for opt, optarg in opts:
             used_range = optarg
             shortcuts = {
                     "t": "today",
+                    "d": "today",
+                    "y": "yesterday",
                     "w": "week",
                     "m": "month",
                     "30": "last_30_days",

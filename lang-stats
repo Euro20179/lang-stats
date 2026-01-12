@@ -262,8 +262,8 @@ def lang_counter():
 
     return include_lang
 
-def print_line_item(name: str, time: str, pct: float, *, clr="35"):
-    text = f"\x1b[{clr}m{name}\x1b[0m" if ansi_enabled else name #]]
+def print_line_item(name: str, time: str, pct: float, *, clr="35", lang_width=15):
+    text = f"\x1b[{clr}m{name:<{lang_width}}\x1b[0m" if ansi_enabled else name #]]
     text += f" {time} ({pct:.2f}%)"
     text += "\x1b[0m" if ansi_enabled else "" #]
     print(text)
@@ -276,7 +276,7 @@ def get_clr_from_list_and_cur(l: list[Any], cur: int):
     else:
         return "0"
 
-def language_printer(user_langs = None):
+def language_printer(user_langs = None, lang_width = 15):
     lang_count = 0
 
     total_pct = 0

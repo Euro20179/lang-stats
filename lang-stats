@@ -26,6 +26,7 @@ will combine all stats for small-project1 and small-project2 as BIG_PROJECT
 combine_as: dict[str, str] = {}
 
 use_included_total = 0
+additive_attributes = []
 
 print_reversed = 0
 
@@ -131,7 +132,7 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:C:", ["find=", "gt=", "lt=", "section=", "raw"])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:C:", ["find=", "gt=", "lt=", "section=", "raw", "additive="])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
@@ -183,6 +184,8 @@ for opt, optarg in opts:
                       file=sys.stderr)
         case "T":
             use_included_total = 1
+        case "additive":
+            additive_attributes = [*optarg]
         case "x":
             include_langs = []
             exclude_langs += [k.strip().lower() for k in optarg.split(",")]
@@ -300,15 +303,21 @@ def language_printer(user_langs = None, lang_width = 15):
 
             secs = item["total_seconds"]
 
-            if use_included_total:
+            if use_included_total == 1:
                 pct = secs / total_secs_included * 100
             else:
                 pct = item["percent"]
 
-
             total_pct += pct
 
+            if "%" in additive_attributes or "p" in additive_attributes:
+                pct = total_pct
+
             total_secs += secs
+
+            if ":" in additive_attributes or "t" in additive_attributes:
+                secs = total_secs
+
             lang_count += 1
 
             clr = get_clr_from_list_and_cur(langs, i)
@@ -583,7 +592,7 @@ for user in user.split(","):
                 )
         )
         std.total_seconds += raw["data"]["total_seconds"]
-        #not += because it's not communitive
+        #not += because it's not additive
         std.day_count = raw["data"]["days_including_holidays"] + 1
 
     #-Fleaders ignores -u

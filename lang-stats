@@ -74,6 +74,8 @@ data_fmt = "stats"
 
 output_fmt = "line"
 
+print_raw = 0
+
 def gen_help():
     print(f"""lang-stats [options...] [qualifiers...]
         ALSO SEE lang-stats(1)
@@ -129,10 +131,12 @@ def gen_help():
 """)
 
 args = sys.argv
-opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:C:", ["find=", "gt=", "lt=", "section="])
+opts, args = getopt.getopt(args[1:], "hTpr:x:i:a:u:t:Aef:F:S:E:RO:P:C:", ["find=", "gt=", "lt=", "section=", "raw"])
 
 for opt, optarg in opts:
     match opt.lstrip('-'):
+        case 'raw':
+            print_raw = 1
         case 'C':
             for pair in optarg.split(":"):
                 umbrella, langs = pair.split("=")
@@ -566,6 +570,9 @@ for user in user.split(","):
             html = res.read()
             raw = json.loads(html)
 
+    if print_raw:
+        json.dump(raw, sys.stdout)
+        exit(0)
 
     if data_fmt == "stats":
         std.users.append(

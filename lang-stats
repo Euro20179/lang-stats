@@ -299,7 +299,7 @@ def language_printer(user_langs = None, lang_width = 15):
         nonlocal total_pct, total_secs, lang_count, cur_milestone, cur_time_milestone
 
         for i, item in enumerate(langs):
-            name = item["name"]
+            name = item["name"].replace(" ", "-")
 
             secs = item["total_seconds"]
 
